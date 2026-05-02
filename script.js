@@ -775,6 +775,9 @@ function buildPrintHTML(result) {
     .lc-page:last-child{page-break-after:avoid}
     .lc-col{flex:1;display:flex;flex-direction:column}
     .lc-cell{flex:1;display:flex;align-items:center;justify-content:center;font-family:Menlo,Consolas,monospace;font-weight:900;font-size:3in;color:#0f172a}
+    .lc-cell-marker{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .lc-marker-symbol{font-size:2in;line-height:1;color:#0f172a}
+    .lc-marker-label{font-family:sans-serif;font-size:.45in;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#64748b;margin-top:.15in}
     .lc-fold{position:absolute;left:50%;top:0;bottom:0;border-left:2px dashed #94a3b8;pointer-events:none}
     .lc-hcut{position:absolute;left:0;right:0;height:0;border-top:1px dashed #cbd5e1;pointer-events:none}
     .lc-hcut::before{content:'✂';position:absolute;left:6px;top:-.55em;font-size:13px;color:#94a3b8}
@@ -820,6 +823,13 @@ function buildPrintHTML(result) {
   });
 
   // ── 4. Letter Cards ──
+  const markerCells = [
+    `<div class="lc-cell-marker"><div class="lc-marker-symbol">▲</div><div class="lc-marker-label">Start</div></div>`,
+    `<div class="lc-cell-marker"><div class="lc-marker-symbol">⊙</div><div class="lc-marker-label">End</div></div>`,
+    `<div class="lc-cell"></div>`,
+  ].join('');
+  html += `<div class="lc-page"><div class="lc-col">${markerCells}</div><div class="lc-fold"></div><div class="lc-col">${markerCells}</div><div class="lc-hcut" style="top:calc(11in / 3)"></div><div class="lc-hcut" style="top:calc(22in / 3)"></div></div>`;
+
   const letterCards = grid.flat().slice().sort();
   for (let i = 0; i < letterCards.length; i += 3) {
     const group = letterCards.slice(i, i + 3);
