@@ -734,6 +734,13 @@ function buildPrintHTML(result) {
     .letter-box-square{width:3.25rem;height:3.25rem;border:2px solid #334155;border-radius:4px}
     .letter-box-num{font-size:.6rem;color:#94a3b8;font-family:sans-serif}
     @media print{.page{padding:1cm 1.5cm}@page{margin:0}}
+    .lc-page{height:11in;padding:0!important;display:flex;position:relative;page-break-after:always}
+    .lc-page:last-child{page-break-after:avoid}
+    .lc-col{flex:1;display:flex;flex-direction:column}
+    .lc-cell{flex:1;display:flex;align-items:center;justify-content:center;font-family:Menlo,Consolas,monospace;font-weight:900;font-size:3in;color:#0f172a}
+    .lc-fold{position:absolute;left:50%;top:0;bottom:0;border-left:2px dashed #94a3b8;pointer-events:none}
+    .lc-hcut{position:absolute;left:0;right:0;height:0;border-top:1px dashed #cbd5e1;pointer-events:none}
+    .lc-hcut::before{content:'✂';position:absolute;left:6px;top:-.55em;font-size:13px;color:#94a3b8}
   `;
 
   let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Mazeo Print</title><style>${css}</style></head><body>`;
@@ -774,6 +781,15 @@ function buildPrintHTML(result) {
           + `<div class="letter-boxes">${boxes}</div>`
           + `</div></div>`;
   });
+
+  // ── 4. Letter Cards ──
+  const letterCards = grid.flat().slice().sort();
+  for (let i = 0; i < letterCards.length; i += 3) {
+    const group = letterCards.slice(i, i + 3);
+    while (group.length < 3) group.push('');
+    const cells = group.map(ch => `<div class="lc-cell">${ch}</div>`).join('');
+    html += `<div class="lc-page"><div class="lc-col">${cells}</div><div class="lc-fold"></div><div class="lc-col">${cells}</div><div class="lc-hcut" style="top:calc(11in / 3)"></div><div class="lc-hcut" style="top:calc(22in / 3)"></div></div>`;
+  }
 
   html += `</body></html>`;
   return html;
