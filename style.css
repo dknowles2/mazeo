@@ -110,7 +110,7 @@
     .grid-wrap { flex-shrink: 0; }
 
     /*
-     * Layout: start-box sits above col 2, end-box sits right of row 2.
+     * Layout: start-box sits below col 2, end-box sits right of row 2.
      * Total size = 6 cells + 5 gaps in each dimension (a perfect square).
      *   width  = 6*cell + 5*5px
      *   height = same
@@ -123,7 +123,7 @@
 
     .grid {
       position: absolute;
-      top: calc(var(--cell-size) + 5px);
+      top: 0;
       left: 0;
       display: grid;
       grid-template-columns: repeat(5, var(--cell-size));
@@ -146,15 +146,15 @@
       color: var(--muted);
       transform: scale(0.72);
     }
-    /* above col 2 */
+    /* below col 2 */
     .start-box {
       left: calc(2 * (var(--cell-size) + 5px));
-      top: 0;
+      top: calc(5 * (var(--cell-size) + 5px));
     }
     /* right of col 4, vertically aligned with row 2 */
     .end-box {
       left: calc(5 * (var(--cell-size) + 5px));
-      top: calc(3 * (var(--cell-size) + 5px));
+      top: calc(2 * (var(--cell-size) + 5px));
     }
 
     .box-symbol { font-size: 1.1rem; line-height: 1; }

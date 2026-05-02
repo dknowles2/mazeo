@@ -10,8 +10,8 @@ const WALLS = [
 ];
 
 // Virtual grid positions for start/end boxes (row, col in extended grid space)
-// Start-box sits one row above col 2; end-box sits one col right of row 2.
-const START_POS = [-1, 2];
+// Start-box sits one row below col 2; end-box sits one col right of row 2.
+const START_POS = [5, 2];
 const END_POS   = [2, 5];
 
 // Pre-compute blocked orthogonal edges from WALLS
@@ -293,11 +293,14 @@ function applyDotsMode() {
         cell.style.color = '';
         cell.style.fontSize = '';
       } else {
-        cell.textContent = grid[r][c];
+        const wordPositions = selectedWord ? currentResult.placements[selectedWord].positions : null;
+        const stepIdx = wordPositions
+          ? wordPositions.findIndex(([pr, pc]) => pr === r && pc === c)
+          : -1;
+        // Word cells show no text — SVG draws the number on top of the path line.
+        cell.textContent = stepIdx >= 0 ? '' : grid[r][c];
         cell.style.fontSize = '';
-        const isActive = selectedWord &&
-          currentResult.placements[selectedWord].positions.some(([pr, pc]) => pr === r && pc === c);
-        const color = isActive
+        const color = stepIdx >= 0
           ? PALETTE[currentResult.orderedWords.indexOf(selectedWord) % PALETTE.length]
           : null;
         cell.style.background = color ? color.bg : '';
@@ -569,6 +572,25 @@ function redrawSVG() {
     svg.appendChild(seg);
   }
 
+  // Draw step numbers centered on each word cell, on top of path lines.
+  // Dots mode: white text on dark dot. Letter mode: fg-colored text on the colored cell.
+  const wordIdx = currentResult.orderedWords.indexOf(selectedWord);
+  const fgColor = PALETTE[wordIdx % PALETTE.length].fg;
+  positions.forEach(([r, c], i) => {
+    const p = getCenter(document.getElementById(`cell-${r}-${c}`));
+    const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    txt.setAttribute('x', p.x.toFixed(1));
+    txt.setAttribute('y', p.y.toFixed(1));
+    txt.setAttribute('text-anchor', 'middle');
+    txt.setAttribute('dominant-baseline', 'central');
+    txt.setAttribute('font-family', 'sans-serif');
+    txt.setAttribute('font-weight', '700');
+    txt.setAttribute('font-size', '9');
+    txt.setAttribute('fill', dotsMode ? '#ffffff' : fgColor);
+    svg.appendChild(txt);
+    txt.textContent = String(i + 1);
+  });
+
 }
 
 function toggleWordHighlight(word, cardEl) {
@@ -594,7 +616,7 @@ function buildPrintHTML(result) {
   const SVG_W = 6 * PS + PC, SVG_H = SVG_W;
 
   function cc(r, c) { return { x: c * PS + PC / 2, y: (r + 1) * PS + PC / 2 }; }
-  const CS = { x: 2 * PS + PC / 2, y: PC / 2 };       // start center
+  const CS = { x: 2 * PS + PC / 2, y: 6 * PS + PC / 2 }; // start center
   const CE = { x: 5 * PS + PC / 2, y: 3 * PS + PC / 2 }; // end center
 
   function svgWalls(wallR = PR) {
@@ -624,6 +646,17 @@ function buildPrintHTML(result) {
         }
       }
     }
+    return s;
+  }
+
+  function svgNumbers(stepMap) {
+    if (!stepMap) return '';
+    let s = '';
+    stepMap.forEach((num, key) => {
+      const [r, c] = key.split(',').map(Number);
+      const p = cc(r, c);
+      s += `<text x="${p.x}" y="${p.y}" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-weight="700" font-size="9" fill="#ffffff">${num}</text>`;
+    });
     return s;
   }
 
@@ -701,6 +734,9 @@ function buildPrintHTML(result) {
 
   function buildSVG(showLetters, pathWord, activePositions) {
     const activeSet = activePositions ? new Set(activePositions.map(([r,c]) => `${r},${c}`)) : null;
+    const stepMap = (!showLetters && activePositions)
+      ? new Map(activePositions.map(([r,c], i) => [`${r},${c}`, i + 1]))
+      : null;
     const gridCenterX = (4 * PS + PC) / 2;
     const svgCenterX = SVG_W / 2;
     const shiftPx = Math.round((svgCenterX - gridCenterX) * 540 / SVG_W);
@@ -710,6 +746,7 @@ function buildPrintHTML(result) {
       + svgMarkers()
       + svgCompass()
       + (pathWord ? svgPath(pathWord) : '')
+      + svgNumbers(stepMap)
       + `</svg>`;
   }
 
