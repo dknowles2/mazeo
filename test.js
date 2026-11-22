@@ -19,6 +19,8 @@ const {
   compressSteps,
   computeWordDirections,
   parseInput,
+  encodeMazeState,
+  decodeMazeState,
   buildPrintHTML,
 } = require('./script.js');
 
@@ -188,6 +190,31 @@ test('parseInput strips non-letters, uppercases, and deduplicates', () => {
 
 test('escapeHtml escapes HTML special characters', () => {
   assert.equal(escapeHtml(`<script>"a"&'b'</script>`), '&lt;script&gt;&quot;a&quot;&amp;&#39;b&#39;&lt;/script&gt;');
+});
+
+test('encodeMazeState and decodeMazeState round-trip exact grid, words, and positions', () => {
+  const original = generate(['HELPFUL', 'THRIFTY', 'BRAVE']);
+  assert.equal(original.error, undefined);
+
+  const code = encodeMazeState(original);
+  assert.ok(code.length <= 65, `Expected compact code, got length ${code.length}`);
+
+  const decoded = decodeMazeState(`#m=${code}`);
+  assert.deepEqual(decoded, original);
+  assert.deepEqual(decodeMazeState(code), original);
+});
+
+test('decodeMazeState rejects malformed, out-of-range, and duplicate-cell codes', () => {
+  assert.equal(decodeMazeState(''), null);
+  assert.equal(decodeMazeState('#m=TOO_SHORT.012'), null);
+  // Duplicate cell index '0' in one word
+  assert.equal(decodeMazeState('ABCDEFGHIJKLMNOPQRSTUVWXY.001'), null);
+  // Out-of-range base-36 char 'z' (>24)
+  assert.equal(decodeMazeState('ABCDEFGHIJKLMNOPQRSTUVWXY.01z'), null);
+  // More than 4 words
+  assert.equal(decodeMazeState('ABCDEFGHIJKLMNOPQRSTUVWXY.0,1,2,3,4'), null);
+  // Duplicate words reconstructed from different positions
+  assert.equal(decodeMazeState('AAAAAAAAAAAAAAAAAAAAAAAAA.01,23'), null);
 });
 
 test('buildPrintHTML produces balanced sheets, viewBox SVGs, and valid inline script', () => {

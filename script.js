@@ -363,6 +363,7 @@
     renderGrid(grid);
     renderWordList(orderedWords, placements);
     applyDotsMode();
+    document.getElementById('copy-link-btn').style.display = 'inline-block';
     document.getElementById('print-btn').style.display = 'inline-block';
     document.getElementById('stale-banner').classList.remove('visible');
   }
@@ -968,6 +969,246 @@
     openPrintUrls.push(url);
   }
 
+  // ── Shareable URL state & local history ───────────────────────────────────────
+
+  const HISTORY_STORAGE_KEY = 'mazeo_history_v1';
+  const MAX_HISTORY = 10;
+  let currentMazeCode = '';
+
+  /**
+   * Encode a generated maze result into a compact URL-safe string:
+   * 25 grid letters (A-Z) + "." + comma-separated base-36 cell indices (0-9a-o) per word.
+   */
+  function encodeMazeState(result) {
+    const gridStr = result.grid.flat().join('');
+    const wordCodes = result.orderedWords.map(word =>
+      result.placements[word].positions
+        .map(([r, c]) => (r * GRID_SIZE + c).toString(36))
+        .join('')
+    );
+    return `${gridStr}.${wordCodes.join(',')}`;
+  }
+
+  /**
+   * Decode a compact maze code (or "#m=..." hash) back into { grid, placements, orderedWords },
+   * returning null if malformed.
+   */
+  function decodeMazeState(rawCode) {
+    if (typeof rawCode !== 'string') return null;
+    const cleaned = rawCode.trim().replace(/^#/, '').replace(/^m=/, '');
+    const match = cleaned.match(/^([A-Z]{25})\.([0-9a-o]{1,8}(?:,[0-9a-o]{1,8}){0,3})$/);
+    if (!match) return null;
+
+    const [, gridStr, wordsStr] = match;
+    const grid = [];
+    for (let r = 0; r < GRID_SIZE; r++) {
+      grid.push(gridStr.slice(r * GRID_SIZE, (r + 1) * GRID_SIZE).split(''));
+    }
+
+    const orderedWords = [];
+    const placements = {};
+    for (const posStr of wordsStr.split(',')) {
+      const seen = new Set();
+      const positions = [];
+      let word = '';
+      for (const ch of posStr) {
+        const idx = parseInt(ch, 36);
+        if (Number.isNaN(idx) || idx < 0 || idx >= GRID_CELLS || seen.has(idx)) return null;
+        seen.add(idx);
+        const r = Math.floor(idx / GRID_SIZE);
+        const c = idx % GRID_SIZE;
+        positions.push([r, c]);
+        word += grid[r][c];
+      }
+      if (placements[word]) return null;
+      orderedWords.push(word);
+      placements[word] = { positions };
+    }
+
+    return { grid, placements, orderedWords };
+  }
+
+  function loadHistory() {
+    try {
+      const raw = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(item =>
+        item && typeof item.code === 'string' && decodeMazeState(item.code) !== null
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  function saveHistory(entries) {
+    try {
+      window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(entries.slice(0, MAX_HISTORY)));
+    } catch {
+      // Ignore storage quota or private-mode errors
+    }
+  }
+
+  function formatSavedDate(ts) {
+    if (!ts) return '';
+    try {
+      return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    } catch {
+      return '';
+    }
+  }
+
+  function renderHistory() {
+    const card = document.getElementById('history-card');
+    const list = document.getElementById('history-list');
+    if (!card || !list) return;
+
+    const entries = loadHistory();
+    list.innerHTML = '';
+    if (entries.length === 0) {
+      card.classList.remove('visible');
+      return;
+    }
+
+    card.classList.add('visible');
+    entries.forEach(entry => {
+      const li = document.createElement('li');
+      li.className = 'history-item' + (entry.code === currentMazeCode ? ' active' : '');
+
+      const loadBtn = document.createElement('button');
+      loadBtn.type = 'button';
+      loadBtn.className = 'history-load-btn';
+      const wordsLabel = Array.isArray(entry.words) ? entry.words.join(' · ') : '';
+
+      const wordsSpan = document.createElement('span');
+      wordsSpan.className = 'history-words';
+      wordsSpan.textContent = wordsLabel;
+
+      const dateSpan = document.createElement('span');
+      dateSpan.className = 'history-date';
+      dateSpan.textContent = formatSavedDate(entry.savedAt);
+
+      loadBtn.append(wordsSpan, dateSpan);
+      loadBtn.addEventListener('click', () => {
+        restoreFromCode(entry.code, { record: false, scroll: true });
+      });
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'history-remove-btn';
+      removeBtn.setAttribute('aria-label', `Remove ${wordsLabel} from recent mazes`);
+      removeBtn.textContent = '×';
+      removeBtn.addEventListener('click', () => {
+        const next = loadHistory().filter(item => item.code !== entry.code);
+        saveHistory(next);
+        renderHistory();
+      });
+
+      li.append(loadBtn, removeBtn);
+      list.appendChild(li);
+    });
+  }
+
+  function recordHistory(result, code) {
+    const entries = loadHistory().filter(item => item.code !== code);
+    entries.unshift({
+      code,
+      words: result.orderedWords,
+      savedAt: Date.now(),
+    });
+    saveHistory(entries);
+    renderHistory();
+  }
+
+  function syncUrlHash(code) {
+    currentMazeCode = code;
+    try {
+      const target = `#m=${code}`;
+      if (window.location.hash !== target) {
+        window.history.replaceState(null, '', target);
+      }
+    } catch {
+      // Ignore history API restrictions
+    }
+  }
+
+  function showMazeResult(result, rawText, { record = true, scroll = true } = {}) {
+    lastGeneratedRaw = rawText;
+    const code = encodeMazeState(result);
+    syncUrlHash(code);
+
+    const output = document.getElementById('output');
+    const wasHidden = !output.classList.contains('visible');
+    output.classList.add('visible');
+    renderAll(result);
+    document.getElementById('generate-btn').textContent = 'Regenerate Maze';
+
+    if (record) {
+      recordHistory(result, code);
+    } else {
+      renderHistory();
+    }
+
+    if (scroll) {
+      const rect = output.getBoundingClientRect();
+      const isVisible = rect.top >= 0 && rect.top < window.innerHeight * 0.75;
+      if (wasHidden || !isVisible) {
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        output.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      }
+    }
+  }
+
+  function restoreFromCode(code, { record = false, scroll = false } = {}) {
+    const result = decodeMazeState(code);
+    if (!result) return false;
+    clearError();
+    clearNotice();
+    const rawText = result.orderedWords.join('\n');
+    wordsInput.value = rawText;
+    showMazeResult(result, rawText, { record, scroll });
+    updateInputMeta();
+    return true;
+  }
+
+  let copyResetTimer = null;
+  function copyShareLink() {
+    if (!currentResult || !currentMazeCode) return;
+    syncUrlHash(currentMazeCode);
+    const url = window.location.href;
+    const btn = document.getElementById('copy-link-btn');
+
+    const onCopied = () => {
+      btn.textContent = 'Link Copied!';
+      clearTimeout(copyResetTimer);
+      copyResetTimer = setTimeout(() => {
+        btn.textContent = 'Copy Link';
+      }, 2000);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(onCopied).catch(() => {
+        showNotice(`Share link: ${url}`);
+      });
+    } else {
+      const tmp = document.createElement('textarea');
+      tmp.value = url;
+      tmp.setAttribute('readonly', '');
+      tmp.style.position = 'fixed';
+      tmp.style.opacity = '0';
+      document.body.appendChild(tmp);
+      tmp.select();
+      try {
+        document.execCommand('copy');
+        onCopied();
+      } catch {
+        showNotice(`Share link: ${url}`);
+      }
+      document.body.removeChild(tmp);
+    }
+  }
+
   // ── Input parsing ──────────────────────────────────────────────────────────────
 
   function parseInput(raw) {
@@ -1082,19 +1323,7 @@
       showNotice(`Note: ${notices.join(' and ')}.`);
     }
 
-    lastGeneratedRaw = raw;
-    const output = document.getElementById('output');
-    const wasHidden = !output.classList.contains('visible');
-    output.classList.add('visible');
-    renderAll(result);
-    document.getElementById('generate-btn').textContent = 'Regenerate Maze';
-
-    const rect = output.getBoundingClientRect();
-    const isVisible = rect.top >= 0 && rect.top < window.innerHeight * 0.75;
-    if (wasHidden || !isVisible) {
-      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      output.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
-    }
+    showMazeResult(result, raw, { record: true, scroll: true });
   }
 
   if (typeof document !== 'undefined') {
@@ -1113,8 +1342,14 @@
       if (currentResult) redrawSVG();
     });
 
+    document.getElementById('copy-link-btn').addEventListener('click', copyShareLink);
     document.getElementById('print-btn').addEventListener('click', openPrintWindow);
     document.getElementById('generate-btn').addEventListener('click', handleGenerate);
+
+    document.getElementById('clear-history-btn').addEventListener('click', () => {
+      saveHistory([]);
+      renderHistory();
+    });
 
     document.getElementById('example-btn').addEventListener('click', () => {
       wordsInput.value = 'HELPFUL\nTHRIFTY\nBRAVE';
@@ -1148,6 +1383,18 @@
       });
     }
 
+    window.addEventListener('hashchange', () => {
+      if (window.location.hash.startsWith('#m=')) {
+        restoreFromCode(window.location.hash, { record: true, scroll: false });
+      }
+    });
+
+    renderHistory();
+    if (window.location.hash.startsWith('#m=')) {
+      if (!restoreFromCode(window.location.hash, { record: true, scroll: false })) {
+        showNotice('The shared maze link was invalid or incomplete.');
+      }
+    }
     updateInputMeta();
   }
 
@@ -1173,6 +1420,8 @@
       compressSteps,
       computeWordDirections,
       parseInput,
+      encodeMazeState,
+      decodeMazeState,
       buildPrintHTML,
     };
   }
