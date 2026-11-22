@@ -41,6 +41,15 @@ This is a zero-dependency static web app (`HTML`, `CSS`, and vanilla `JavaScript
 - `index.html` — App markup and semantic layout
 - `style.css` — Responsive styles, accessibility focus/contrast rules, and direct print styles
 - `script.js` — Grid solver, wall-aware BFS compass pathfinding, live SVG rendering, and printable sheet generator
+- `test.js` — Zero-dependency unit tests using Node's built-in test runner
+
+## Running Tests
+
+Requires Node.js 18+:
+
+```bash
+node --test
+```
 
 ## License
 
