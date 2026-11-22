@@ -968,22 +968,7 @@
     openPrintUrls.push(url);
   }
 
-  window.addEventListener('beforeunload', () => {
-    openPrintUrls.forEach(url => URL.revokeObjectURL(url));
-    openPrintUrls = [];
-  });
-
-  window.addEventListener('beforeprint', () => {
-    if (currentResult) redrawSVG();
-  });
-
-  // ── Input handling & live feedback ─────────────────────────────────────────────
-
-  const wordsInput = document.getElementById('words-input');
-  const errorEl = document.getElementById('error-msg');
-  const noticeEl = document.getElementById('input-notice');
-  const inputMetaEl = document.getElementById('input-meta');
-  const staleBannerEl = document.getElementById('stale-banner');
+  // ── Input parsing ──────────────────────────────────────────────────────────────
 
   function parseInput(raw) {
     const rawLines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -1000,6 +985,46 @@
     return { words: unique, strippedChars, removedDuplicates };
   }
 
+  // ── DOM wiring (browser only) ──────────────────────────────────────────────────
+
+  let wordsInput;
+  let errorEl;
+  let noticeEl;
+  let inputMetaEl;
+  let staleBannerEl;
+
+  function showError(msg, { markInputInvalid = true } = {}) {
+    if (!errorEl) return;
+    errorEl.textContent = msg;
+    errorEl.style.display = 'block';
+    if (wordsInput) {
+      if (markInputInvalid) {
+        wordsInput.setAttribute('aria-invalid', 'true');
+      } else {
+        wordsInput.removeAttribute('aria-invalid');
+      }
+    }
+  }
+
+  function clearError() {
+    if (!errorEl) return;
+    errorEl.style.display = 'none';
+    errorEl.textContent = '';
+    if (wordsInput) wordsInput.removeAttribute('aria-invalid');
+  }
+
+  function showNotice(msg) {
+    if (!noticeEl) return;
+    noticeEl.textContent = msg;
+    noticeEl.classList.add('visible');
+  }
+
+  function clearNotice() {
+    if (!noticeEl) return;
+    noticeEl.textContent = '';
+    noticeEl.classList.remove('visible');
+  }
+
   function updateInputMeta() {
     const { words } = parseInput(wordsInput.value);
     const required = computeRequired(words);
@@ -1012,32 +1037,6 @@
     } else {
       staleBannerEl.classList.remove('visible');
     }
-  }
-
-  function showError(msg, { markInputInvalid = true } = {}) {
-    errorEl.textContent = msg;
-    errorEl.style.display = 'block';
-    if (markInputInvalid) {
-      wordsInput.setAttribute('aria-invalid', 'true');
-    } else {
-      wordsInput.removeAttribute('aria-invalid');
-    }
-  }
-
-  function clearError() {
-    errorEl.style.display = 'none';
-    errorEl.textContent = '';
-    wordsInput.removeAttribute('aria-invalid');
-  }
-
-  function showNotice(msg) {
-    noticeEl.textContent = msg;
-    noticeEl.classList.add('visible');
-  }
-
-  function clearNotice() {
-    noticeEl.textContent = '';
-    noticeEl.classList.remove('visible');
   }
 
   function handleGenerate() {
@@ -1098,40 +1097,83 @@
     }
   }
 
-  document.getElementById('print-btn').addEventListener('click', openPrintWindow);
-  document.getElementById('generate-btn').addEventListener('click', handleGenerate);
+  if (typeof document !== 'undefined') {
+    wordsInput = document.getElementById('words-input');
+    errorEl = document.getElementById('error-msg');
+    noticeEl = document.getElementById('input-notice');
+    inputMetaEl = document.getElementById('input-meta');
+    staleBannerEl = document.getElementById('stale-banner');
 
-  document.getElementById('example-btn').addEventListener('click', () => {
-    wordsInput.value = 'HELPFUL\nTHRIFTY\nBRAVE';
-    updateInputMeta();
-    handleGenerate();
-  });
+    window.addEventListener('beforeunload', () => {
+      openPrintUrls.forEach(url => URL.revokeObjectURL(url));
+      openPrintUrls = [];
+    });
 
-  wordsInput.addEventListener('input', updateInputMeta);
-
-  wordsInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      handleGenerate();
-    }
-  });
-
-  document.getElementById('dots-toggle').addEventListener('change', e => {
-    dotsMode = e.target.checked;
-    applyDotsMode();
-  });
-
-  // Keep live SVG aligned with CSS grid across viewport resizes / breakpoint changes
-  const puzzleArea = document.querySelector('.puzzle-area');
-  if (typeof ResizeObserver !== 'undefined' && puzzleArea) {
-    new ResizeObserver(() => {
-      if (currentResult) redrawSVG();
-    }).observe(puzzleArea);
-  } else {
-    window.addEventListener('resize', () => {
+    window.addEventListener('beforeprint', () => {
       if (currentResult) redrawSVG();
     });
+
+    document.getElementById('print-btn').addEventListener('click', openPrintWindow);
+    document.getElementById('generate-btn').addEventListener('click', handleGenerate);
+
+    document.getElementById('example-btn').addEventListener('click', () => {
+      wordsInput.value = 'HELPFUL\nTHRIFTY\nBRAVE';
+      updateInputMeta();
+      handleGenerate();
+    });
+
+    wordsInput.addEventListener('input', updateInputMeta);
+
+    wordsInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        handleGenerate();
+      }
+    });
+
+    document.getElementById('dots-toggle').addEventListener('change', e => {
+      dotsMode = e.target.checked;
+      applyDotsMode();
+    });
+
+    // Keep live SVG aligned with CSS grid across viewport resizes / breakpoint changes
+    const puzzleArea = document.querySelector('.puzzle-area');
+    if (typeof ResizeObserver !== 'undefined' && puzzleArea) {
+      new ResizeObserver(() => {
+        if (currentResult) redrawSVG();
+      }).observe(puzzleArea);
+    } else {
+      window.addEventListener('resize', () => {
+        if (currentResult) redrawSVG();
+      });
+    }
+
+    updateInputMeta();
   }
 
-  updateInputMeta();
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+      GRID_SIZE,
+      GRID_CELLS,
+      WALLS,
+      START_POS,
+      END_POS,
+      BLOCKED_EDGES,
+      tileToRC,
+      escapeHtml,
+      cross2d,
+      onSegment,
+      segmentsIntersect,
+      computeRequired,
+      buildCells,
+      findNonCrossingPath,
+      assignWords,
+      generate,
+      navBFS,
+      compressSteps,
+      computeWordDirections,
+      parseInput,
+      buildPrintHTML,
+    };
+  }
 })();
