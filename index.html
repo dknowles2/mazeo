@@ -13,42 +13,66 @@
     <p>Enter up to 4 words (max 8 letters each) to place in a 5&times;5 letter grid.</p>
   </header>
 
-  <div class="card">
-    <h2>Words</h2>
-    <textarea id="words-input" placeholder="Enter words, one per line&#10;&#10;HELPFUL&#10;THRIFTY&#10;BRAVE"></textarea>
-    <div class="input-row">
-      <button id="generate-btn">Generate Maze</button>
-      <button id="print-btn">Print</button>
-      <div id="error-msg"></div>
-    </div>
-  </div>
-
-  <div id="output" class="card">
-    <h2>Maze</h2>
-    <div class="output-layout">
-      <div class="grid-wrap">
-        <div class="puzzle-area">
-          <div class="start-box" id="start-box">
-            <span class="box-symbol">▲</span>
-            <span class="box-label">start</span>
-          </div>
-          <div id="grid" class="grid"></div>
-          <div class="end-box" id="end-box">
-            <span class="box-symbol">⊙</span>
-            <span class="box-label">end</span>
-          </div>
-          <svg id="word-path" xmlns="http://www.w3.org/2000/svg"></svg>
-        </div>
-        <p class="grid-hint">Click a word to highlight it.</p>
-        <label class="toggle-label">
-          <input type="checkbox" id="dots-toggle">
-          <span class="toggle-track"></span>
-          Hide letters
-        </label>
+  <main>
+    <section class="card" aria-labelledby="words-label">
+      <div class="card-header">
+        <label id="words-label" class="card-title" for="words-input">Words</label>
+        <span id="input-meta" class="input-meta" aria-live="polite">0/4 words &middot; Ctrl/&#8984;+Enter to generate</span>
       </div>
-      <div id="word-list" class="word-list"></div>
-    </div>
-  </div>
+      <textarea
+        id="words-input"
+        aria-describedby="input-meta error-msg"
+        placeholder="Enter words, one per line&#10;&#10;HELPFUL&#10;THRIFTY&#10;BRAVE"
+        spellcheck="false"
+      ></textarea>
+      <div class="input-row">
+        <button id="generate-btn" type="button">Generate Maze</button>
+        <button id="example-btn" type="button" class="btn-secondary">Try Example</button>
+        <button id="print-btn" type="button">Print</button>
+        <div id="input-notice" class="notice-msg" role="status" aria-live="polite"></div>
+        <div id="error-msg" role="alert" aria-live="assertive"></div>
+      </div>
+    </section>
+
+    <section id="output" class="card" aria-labelledby="maze-heading">
+      <div class="card-header">
+        <h2 id="maze-heading" class="card-title">Maze</h2>
+        <span id="stale-banner" class="stale-banner" role="status" aria-live="polite">
+          Words changed &mdash; regenerate to update the maze and print sheet.
+        </span>
+      </div>
+      <div class="output-layout">
+        <div class="grid-wrap">
+          <div class="puzzle-area">
+            <div class="start-box" id="start-box" aria-label="Start marker">
+              <svg class="box-symbol" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                <polygon points="7,1.5 13,12.5 1,12.5" fill="currentColor" />
+              </svg>
+              <span class="box-label">start</span>
+            </div>
+            <div id="grid" class="grid" role="region" aria-label="5 by 5 maze letter grid"></div>
+            <div class="end-box" id="end-box" aria-label="End marker">
+              <svg class="box-symbol" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                <circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6" />
+                <circle cx="7" cy="7" r="2" fill="currentColor" />
+              </svg>
+              <span class="box-label">end</span>
+            </div>
+            <svg id="word-path" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
+          </div>
+          <div class="grid-controls">
+            <p class="grid-hint">Select a word to highlight its steps and view directions.</p>
+            <label class="toggle-label">
+              <input type="checkbox" id="dots-toggle" role="switch">
+              <span class="toggle-track" aria-hidden="true"></span>
+              <span>Hide letters</span>
+            </label>
+          </div>
+        </div>
+        <div id="word-list" class="word-list" aria-label="Placed words"></div>
+      </div>
+    </section>
+  </main>
 </div>
 
 <script src="script.js"></script>
