@@ -15,6 +15,9 @@ Maze-Orienteering is a compact, tabletop- or room-scale orienteering activity pl
   - Click **Try Example** or press `Ctrl`/`⌘` + `Enter` to generate a maze immediately.
   - Select any word card to highlight its numbered steps on the grid and view step-by-step compass directions (`N`, `S`, `E`, `W`, `NE`, `SE`, `SW`, `NW`) that route around walls.
   - Toggle **Hide letters** to preview the blank dot-grid view used on runner sheets.
+- **Shareable Links & Recent History:**
+  - Every generated maze is encoded into a compact `#m=...` URL hash (exact 5×5 grid and word checkpoints), with a **Copy Link** button to bookmark or share the exact course.
+  - Up to 10 recent mazes are saved automatically in your browser's `localStorage` under **Recent Mazes** so you can reload or reprint past courses anytime.
 - **Printable Course Pack:** Opens a print-ready view with section checkboxes so you can print only what you need:
   - **Maze Coordinator (1 sheet):** Full 5×5 letter grid with walls, Start/End markers, compass rose, and word answer key.
   - **Maze Runner – Easy (1 per word):** Dot grid with numbered red control rings and letter boxes to fill in.

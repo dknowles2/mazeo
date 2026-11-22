@@ -28,6 +28,7 @@
       <div class="input-row">
         <button id="generate-btn" type="button">Generate Maze</button>
         <button id="example-btn" type="button" class="btn-secondary">Try Example</button>
+        <button id="copy-link-btn" type="button" class="btn-secondary">Copy Link</button>
         <button id="print-btn" type="button">Print</button>
         <div id="input-notice" class="notice-msg" role="status" aria-live="polite"></div>
         <div id="error-msg" role="alert" aria-live="assertive"></div>
@@ -71,6 +72,14 @@
         </div>
         <div id="word-list" class="word-list" aria-label="Placed words"></div>
       </div>
+    </section>
+
+    <section id="history-card" class="card history-card" aria-labelledby="history-heading">
+      <div class="card-header">
+        <h2 id="history-heading" class="card-title">Recent Mazes</h2>
+        <button id="clear-history-btn" type="button" class="btn-link">Clear History</button>
+      </div>
+      <ul id="history-list" class="history-list"></ul>
     </section>
   </main>
 </div>
